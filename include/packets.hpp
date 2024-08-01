@@ -21,11 +21,16 @@ template<typename T>
 class Packet : public T {
 public:
 
+    inline Packet() = default;
+
+    template<typename... U>
+    inline Packet(U&&... args) : T(args...) {}
+
 	inline NetReturn netWriteToBuffer(void *buffer, uint32_t len) const {
         return T::netWriteToBuffer(buffer, len);
     }
 
-    inline static NetReturn netReadFromBuffer(T *out, const void *buffer, uint32_t len) {
+    inline static NetReturn netReadFromBuffer(Packet<T> *out, const void *buffer, uint32_t len) {
         return T::netReadFrombuffer(out, buffer, len);
     }
 	

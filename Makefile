@@ -1,66 +1,97 @@
-SOURCE_PREFIX = source/
-TEST_SOURCE_PREFIX = tests/
-HEADER_PREFIX = include/
-OBJ_PREFIX = obj/
-TEST_OBJ_PREFIX = obj/test/
-BUILD_PREFIX = bin/Debug/
-TEST_BUILD_PREFIX = bin/Tests/
-DEFINES = -DDebug
+ifneq "$(wildcard config.mk)" "config.mk"
+$(error Error: could not find file `config.mk`. Please make a copy of `config.mk.template`, rename the copy to `config.mk`, and adjust the copy as necessary before attempting to build again.)
+endif
 
-COMMON_INCLUDE = -I $(HEADER_PREFIX)
+# Get all of the locations for dependencies
+# Modify dependencies.mk to set the locations/commands for each tool
+include config.mk
 
-CXX = g++
-COMMON_FLAGS = -std=c++20 $(DEFINES) $(COMMON_INCLUDE)
-FLAGS = $(COMMON_FLAGS) -g
-RELEASE_FLAGS = $(COMMON_FLAGS) -O3
-LINK_FLAGS = 
-TEST_LINK_FLAGS = 
+# Local prefixes
+INCLUDE_PREFIX := ./include/
+SOURCE_PREFIX := ./source/
+OBJ_PREFIX := ./obj/
+BIN_PREFIX := ./bin/
+DEBUG_PREFIX := $(BIN_PREFIX)/Debug/
+RELEASE_PREFIX := $(BIN_PREFIX)/Release/
 
-BIN_NAME = SMGNetMultiplayerServer
-TEST_BIN_NAME = $(BIN_NAME)
+OUTPUT_PREFIX := $(DEBUG_PREFIX)
 
-objects = 
-testObjects = 
-main = main.o
-testMain = main.o
+DEFINES :=
 
-OBJS = $(foreach obj, $(objects), $(OBJ_PREFIX)$(obj))
-TEST_OBJS = $(foreach obj, $(testObjects), $(TEST_OBJ_PREFIX)$(obj))
-MAIN = $(OBJ_PREFIX)$(main)
-TEST_MAIN = $(TEST_OBJ_PREFIX)$(testMain)
-DEPS = $(OBJS:.o=.d) $(MAIN:.o=.d)
-TEST_DEPS = $(DEPS) $(TEST_OBJS:.o=.d) $(TEST_MAIN:.o=.d)
+debug: DEFINES += -DDEBUG
 
-.PHONY: Debug Release cleanTest cleanDebug
+# Add more target prefixes here
+release: OUTPUT_PREFIX := $(RELEASE_PREFIX)
 
-SMGNetMultiplayerServer: $(DEPS) $(OBJS) $(MAIN)
-	$(CXX) -o $(BUILD_PREFIX)$(BIN_NAME) $(OBJS) $(MAIN) $(LINK_FLAGS)
+ifneq ($(COMPLETE_PREREQUISITES), true) #1
+COMPLETE_PREREQUISITES := false
+endif #1
 
-Test: $(TEST_DEPS) $(OBJS) $(TEST_OBJS) $(TEST_MAIN)
-	$(CXX) -o $(TEST_BUILD_PREFIX)$(TEST_BIN_NAME) $(OBJS) $(TEST_OBJS) $(TEST_MAIN) $(TEST_LINK_FLAGS)
+ifeq ($(COMPLETE_PREREQUISITES), true) #1
+AUTO_GENERATE_FLAG := -MM
 
-Debug: SMGNetMultiplayerServer
+ifeq ($(SYSTEM_INCLUDE_PREREQUISITE), true) #2
+AUTO_GENERATE_FLAG := -M
+endif #2
 
-Release: SMGNetMultiplayerServer
+endif #1
 
-$(OBJ_PREFIX)%.o:
-	$(CXX) -c -o $@ $(SOURCE_PREFIX)$*.cpp $(FLAGS)
+INCLUDE := -i $(INCLUDE_PREFIX)
 
-$(TEST_OBJ_PREFIX)%.o:
-	$(CXX) -c -o $@ $(TEST_SOURCE_PREFIX)$*.cpp $(TEST_FLAGS)
+WARNFLAGS := -wall
 
-$(OBJ_PREFIX)%.d: $(SOURCE_PREFIX)%.cpp
-	$(CXX) $< -MM -MF $@ -MT '$(OBJ_PREFIX)$*.o $@' $(FLAGS)
+CXXFLAGS := -c $(INCLUDE) $(WARNFLAGS)
 
-$(TEST_OBJ_PREFIX)%.d: $(TEST_SOURCE_PREFIX)%.cpp
-	$(CXX) $< -MM -MF $@ -MT '$(TEST_OBJ_PREFIX)$*.o $@' $(TEST_FLAGS)
+DEBUG_FLAGS := -g
 
-include $(OBJS:.o=.d) $(MAIN:.o=.d)
+RELEASE_FLAGS := -O3
 
-include $(TEST_OBJS:.o=.d) $(TEST_MAIN:.o=.d)
+debug: CXXFLAGS += $(DEBUG_FLAGS)
+release: CXXFLAGS += $(RELEASE_FLAGS)
 
-cleanDebug:
-	rm $(OBJ_PREFIX)/*.o $(OBJ_PREFIX)/*.d $(BUILD_PREFIX)/*
+O_FILES := main.o packets.o
 
-cleanTest:
-	rm $(TEST_BUILD_PREFIX)/* $(TEST_OBJ_PREFIX)/*.o $(TEST_OBJ_PREFIX)/*.d
+O_FILES := $(foreach obj, $(O_FILES), $(OBJ_PREFIX)/$(obj))
+
+.PHONY: clean all debug release cleandeps
+
+debug: all
+release: all
+
+all: | $(OUTPUT_PREFIX)
+all: $(OUTPUT_PREFIX)/SMGServer 
+
+clean:
+	rm -f $(OBJ_PREFIX)/* $(DEBUG_PREFIX)/* $(RELEASE_PREFIX)/*
+
+cleandeps:
+	rm -f $(OBJ_PREFIX)/*.d
+
+$(OBJ_PREFIX):
+	mkdir -p $(OBJ_PREFIX)
+
+$(DEBUG_PREFIX):
+	mkdir -p $(DEBUG_PREFIX)
+
+$(RELEASE_PREFIX):
+	mkdir -p $(RELEASE_PREFIX)
+
+$(OBJ_PREFIX)/%.o: $(SOURCE_PREFIX)/%.cpp | $(OBJ_PREFIX)
+	$(CXX) $(CXXFLAGS) $(DEFINES) -c -o $@ $<
+
+$(OBJ_PREFIX)/%.o: $(SOURCE_PREFIX)/%.c | $(OBJ_PREFIX)
+	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
+
+$(OUTPUT_PREFIX)/SMGServer: $(O_FILES)
+	$(LD) $(O_FILES) -o $@
+
+
+
+ifeq ($(COMPLETE_PREREQUISITES), true) #1
+
+$(OBJ_PREFIX)/%.d: $(SOURCE_PREFIX)/%.c* | $(OBJ_PREFIX)
+	@$(CC) $(INCLUDE) $(AUTO_GENERATE_FLAG) $< -MF $@ -MT "$@ $(OBJ_PREFIX)/$*.o"
+
+include $(O_FILES:.o=.d) 
+
+endif #1

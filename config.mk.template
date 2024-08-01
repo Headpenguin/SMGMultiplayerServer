@@ -1,0 +1,30 @@
+#
+# If your setup is generic, you will likely only need
+# to change the immediately below variables to match your setup.
+# However, if you have a special setup, adjust the rest of this 
+# file as needed.
+#
+
+# No paths need to be set!
+
+#
+# Everything below this point probably does not need to be adjusted,
+# but feel free to adjust as needed.
+#
+
+
+
+CC := gcc
+CXX := gcc
+LD := gcc
+
+# Development settings
+
+# If set to `true` (case-sensitive), files will be regenerated
+# if any headers they include are modified. (default value is `false`)
+#COMPLETE_PREREQUISITES := true
+
+# If set to `true`, system includes (such as the headers from Petari)
+# will be included in the preqreuisites for each file. (default `false`)
+# SYSTEM_INCLUDE_PREREQUISITE := true
+
