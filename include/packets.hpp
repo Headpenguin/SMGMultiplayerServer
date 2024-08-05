@@ -11,9 +11,10 @@ constexpr size_t PACKET_ALIGNMENT = 8;
 // Must be power of 2
 constexpr uint32_t MAX_PACKET_SIZE = 1 << 7; 
 
-enum class Tag : int32_t {
+enum class Tag : uint32_t {
     CONNECT = 0,
-    ACK
+    ACK,
+    MAX_TAG
 };
 
 template<typename T>
@@ -34,7 +35,7 @@ public:
     }
 
     inline static NetReturn netReadFromBuffer(Packet<T> *out, const void *buffer, uint32_t len) {
-        return T::netReadFrombuffer(out, buffer, len);
+        return T::netReadFromBuffer(out, buffer, len);
     }
 
 };

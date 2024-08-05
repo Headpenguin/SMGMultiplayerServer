@@ -3,7 +3,9 @@
 
 #include "netCommon.hpp"
 
-struct sockaddr_in;
+extern "C" {
+    #include <netinet/ip.h>
+}
 
 namespace Transmission {
 
@@ -18,21 +20,22 @@ class ConnectionHolder {
     Connection *connections;
     uint8_t len;
 public:
-    inline ConnectionHolder(Connection *connections, uint8_t len)
-        : connections(connections), len(len), candidates(len) {}
+    ConnectionHolder(Connection *connections, uint8_t len);
     // Either return the id of the corresponding address, or
     // create a connection candidate and return that id, along with
     // error code NetReturn::CANDIDATE. Maybe in the future return
     // FILTERED if necessary
     NetReturn getId(sockaddr_in *addr);
 
-    inline bool isCandidate(uint8_t id) const {return id < len ? connections[id] : false;}
+    inline bool isCandidate(uint8_t id) const {
+        return id < len ? connections[id].isCandidate : false;
+    }
     
     inline void purgeCandidate(uint8_t candidateId) {
-        if(candidateId < len) connections[candidateId]->isCandidate = false;
+        if(candidateId < len) connections[candidateId].isCandidate = false;
     }
     inline void purgeConnection(uint8_t id) {
-        if(id < len) connections[id]->isActive = false;
+        if(id < len) connections[id].isActive = false;
     }
     inline NetReturn addConnection(sockaddr_in *addr) {
         NetReturn res = getId(addr);
@@ -43,9 +46,9 @@ public:
         }
     }
     inline bool addConnection(uint8_t id) {
-        if(id < len && connections[id]->isCandidate) {
-            connections[id]->isCandidate = false;
-            connections[id]->isActive = true;
+        if(id < len && connections[id].isCandidate) {
+            connections[id].isCandidate = false;
+            connections[id].isActive = true;
             return true;
         }
         return false;

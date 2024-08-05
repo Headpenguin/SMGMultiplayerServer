@@ -5,16 +5,21 @@
 namespace Packets {
 
 NetReturn PacketFactory::constructPacket(Tag tag, PacketUnion *pu, 
-    const void *buffer, uint32_t len) 
+    const void *buffer, uint32_t len) const
 {
-    if(isCandidateMode && tag != CONNECT) return {0, NetReturn::FILTERED};
+    if(isCandidateMode && tag != Tag::CONNECT) return {0, NetReturn::FILTERED};
+    if(tag >= Packets::Tag::MAX_TAG) return {0, NetReturn::INVALID_DATA};
     pu->tag = tag;
     switch(tag) {
-        case CONNECT:
+        case Tag::CONNECT:
             return Connect::netReadFromBuffer(&pu->connect, buffer, len);
-        case ACK:
+        case Tag::ACK:
             return Ack::netReadFromBuffer(&pu->ack, buffer, len);
+
+        case Tag::MAX_TAG: // unreachable
+            break;
     }
+    return {}; // unreachable
 }
 
 }

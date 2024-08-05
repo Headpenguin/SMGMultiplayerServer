@@ -1,9 +1,20 @@
 #include <cstdlib>
+#include <cstdio>
+
+#include "protocol.hpp"
+#include "packets.hpp"
+#include "packets/connect.hpp"
+#include "packets/ack.hpp"
+#include "packetFactory.hpp"
+#include "transmission.hpp"
 
 extern "C" {
 
 #include <sys/socket.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <poll.h>
 
 }
 
@@ -41,7 +52,7 @@ static size_t packetBufferSize =
 #ifdef TRANSMISSION_BUFF_SIZE
 	TRANSMISSION_BUFF_SIZE;
 #else
-	alignUp((MAX_PACKET_SIZE + 20) * maxNumPlayers, Packets::PACKET_ALIGNMENT);
+	alignUp((Packets::MAX_PACKET_SIZE + 20) * maxNumPlayers, Packets::PACKET_ALIGNMENT);
 #endif
 
 int main() {
@@ -50,45 +61,50 @@ int main() {
 
 	int fd = socket(AF_INET, SOCK_DGRAM, 0);
 	
-	if(fd < 0) goto fail;
+	if(fd < 0) return -1;
 
 	in_addr s_addr;
    	err = inet_aton(bindInetAddrStr, &s_addr);
 
 	if(err < 0) {
 		perror("(main) Invalid host IP address");
-		goto failSocket;
+		close(fd);
+		return -1;
 	}
 
 	sockaddr_in addr;
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = s_addr;
+	addr.sin_addr = s_addr;
 
-	err = bind(fd, &addr, sizeof addr);
+	err = bind(fd, reinterpret_cast<const sockaddr *>(&addr), sizeof addr);
 
 	if(err < 0) {
 		perror("(main) Failed to bind to IP address");
-		goto failSocket;
+		close(fd);
+		return -1;
 	}
 
 	void *packetBuffer = aligned_alloc(Packets::PACKET_ALIGNMENT, packetBufferSize);
 
 	if(packetBuffer == nullptr) {
 		perror("(main) Not enough memory available on this system");
-		goto failSocket;
+		close(fd);
+		return -1;
 	}
 
-	auto *connectionBuffer = new(std::nothrow) Transmission::Connection[connectionBufferSize];
+	auto *connectionBuffer = new(std::nothrow) 
+        Transmission::Connection[connectionBufferSize];
 
 	if(connectionBuffer == nullptr) {
-		fprint(stderr, "(main) Not enough memory available on this system\n");
-		goto failSocket;
+		fprintf(stderr, "(main) Not enough memory available on this system\n");
+		close(fd);
+		return -1;
 	}
 
 	Packets::PacketFactory factory;
-	PacketProcessor pp(packetBuffer, packetBufferSize, factory);
+	Protocol::PacketProcessor pp(packetBuffer, packetBufferSize, factory);
 
 	Transmission::ConnectionHolder connectionHolder(connectionBuffer, connectionBufferSize);
 
@@ -99,19 +115,19 @@ int main() {
 
 	bool quit = false;
 	
-	pollfd poll = {STDIN_FILENO, POLLIN, 0};
+	pollfd pfd = {STDIN_FILENO, POLLIN, 0};
 	
 	while(!quit) {
 
 		NetReturn res;
-		res = pp.readPackets(reader);
+		res = pp.readPacket(reader);
 		switch(res.errorCode) {
 			case NetReturn::OK:
 				break;
 			case NetReturn::CANDIDATE:
 				factory.setCandidate();
 				break;
-			case NetReturn::NOTENOUGHSPACE:
+			case NetReturn::NOT_ENOUGH_SPACE:
 				fprintf(stderr, "Warning: Not enough memory\n");
 				continue;
 			default:
@@ -120,7 +136,7 @@ int main() {
 		}
 
 
-		Packets::PacketUnion pu;
+		Packets::PacketFactory::PacketUnion pu;
 		
 		res = pp.processPacket(&pu);
 		if(res.errorCode != NetReturn::OK) {
@@ -130,34 +146,40 @@ int main() {
 			continue;
 		}
 		switch(pu.tag) {
-			case Packets::CONNECT:
+			case Packets::Tag::CONNECT: 
+			{
+				NetReturn id = pp.getSenderId();
+				if(id.errorCode != NetReturn::OK) netHandleInvalidState();
+				connectionHolder.addConnection(id.bytes);
 				pp.addPacket(Packets::Ack());
-				pp.dropPacket();
-				pp.finishProcesssing();
-				break;
-			case Packet::ACK:
 				pp.dropPacket();
 				pp.finishProcessing();
 				break;
+			}
+
+			case Packets::Tag::ACK:
+			{
+				pp.dropPacket();
+				pp.finishProcessing();
+				break;
+			}
 		}
 
 		do {
-			res = pp.sendPackets(writer);
+			res = pp.sendPacket(writer);
 		} while (res.errorCode == NetReturn::OK && res.bytes > 0);
 		
 
-		poll(&poll, 1, 0);
+		poll(&pfd, 1, 0);
 
-		if(poll.revents & POLLIN) quit = true;	
+		if(pfd.revents & POLLIN) quit = true;	
 
-		poll.events = POLLIN;
+		pfd.events = POLLIN;
 
 	}
 
-failSocket:
 	close(fd);
 
-fail:
-	return -1;
+	return 0;
 }
 

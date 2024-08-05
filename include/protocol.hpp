@@ -3,6 +3,17 @@
 
 #include "packets.hpp"
 
+extern "C" {
+#include <arpa/inet.h>
+}
+
+namespace Transmission {
+
+    class Reader;
+    class Writer;
+
+}
+
 namespace Protocol {
 
 
@@ -25,18 +36,15 @@ class PacketHolder {
     uint8_t *sendHead;
 
 
-
-    uint32_t currentPacketLen;
-
     void resizeRead();
     
     static inline bool isLocationValid(const uint8_t *first, const uint8_t *last, const uint8_t *location) {
         bool isLocationBetween = location < last && location > first;
-        if(first < last) return !isLocationBetween;
+        if(first <= last) return !isLocationBetween;
         else return isLocationBetween;
     }
 
-    NetReturn rollbackSendHead(uint8_t &*packetBuffer, uint32_t packetSize);
+    NetReturn rollbackSendHead(uint8_t *&packetBuffer, uint32_t packetSize);
 protected:
 
     struct PacketConstructionArgs {
@@ -49,9 +57,9 @@ protected:
 public:
    
     // Both the start and end of the buffer must be well-aligned
-    inline PacketHolder(void *buffer, uint32_t bufferLen) 
-        : buffer(buffer), bufferLen(bufferLen), readHead(buffer), 
-        readEnd(buffer), processHead(buffer), 
+    inline PacketHolder(void *_buffer, uint32_t bufferLen) 
+        : buffer(reinterpret_cast<uint8_t *>(_buffer)), bufferLen(bufferLen), 
+        readHead(buffer),  readEnd(buffer + bufferLen), processHead(buffer), 
         processEnd(buffer), sendHead(buffer) {}
 
     // Does not hold a reference to `packet` once call completes 
@@ -60,13 +68,15 @@ public:
         
         uint8_t *packetBuffer;
 
-        NetReturn res = rollbackHead(packetBuffer, packet.getSize());
-        if(res.err != NetReturn::OK) return res;
+        uint32_t size = packet.getSize();
+
+        NetReturn res = rollbackSendHead(packetBuffer, size);
+        if(res.errorCode != NetReturn::OK) return res;
 
         auto *tag 
-            = reinterpret_cast<Packets::Tag *>(packetBuffer - sizeof Packets::Tag);
+            = reinterpret_cast<uint32_t *>(packetBuffer - sizeof(Packets::Tag));
 
-        *tag = htonl(packet::tag);
+        *tag = htonl(static_cast<uint32_t>(Packets::Packet<T>::tag));
         
         res = packet.netWriteToBuffer(packetBuffer, size);
 
@@ -84,17 +94,16 @@ public:
 
 };
 
-template<typename T>
-class PacketProcessor : public PacketHolder 
-    requires (const T t, Packets::Tag tag, T::PacketUnion *pu, 
+template<typename T> 
+    requires requires (const T t, Packets::Tag tag, T::PacketUnion *pu, 
         const void *buffer, uint32_t len) 
     {
-        {t.constructPacket(tag, pu, buffer, len)} -> NetReturn;
+        {t.constructPacket(tag, pu, buffer, len)} -> std::same_as<NetReturn>;
     } 
-{
+class PacketProcessor : public PacketHolder {
     T packetFactory;
 public:
-    PacketProcessor(const void *buffer, uint32_t bufferLen, T packetFactory)
+    PacketProcessor(void *buffer, uint32_t bufferLen, T packetFactory)
         : PacketHolder(buffer, bufferLen), packetFactory(packetFactory) {}
     
     NetReturn processPacket(T::PacketUnion *pu) {
@@ -102,16 +111,12 @@ public:
         PacketConstructionArgs args;
         NetReturn res = extractPacketInfo(args);
         
-        if(res != NetReturn::OK) {
+        if(res.errorCode != NetReturn::OK) {
             return res;
         }
 
         res = packetFactory.constructPacket
-            (args.tag, pu, args.packetBuffer, args.len);
-
-        if(res.errorCode == NetReturn::OK) {
-            currentPacketLen = res.bytes;
-        }
+            (args.tag, pu, args.buffer, args.len);
         
         return res;
     }

@@ -15,7 +15,7 @@ public:
     NetReturn netWriteToBuffer(void *buffer, uint32_t len) const;
     static NetReturn netReadFromBuffer(Packet<_Ack> *out, const void *buffer, uint32_t len);
 
-    static constexpr Tag tag = Tag::Ack;
+    static constexpr Tag tag = Tag::ACK;
 };
 
 typedef Packet<_Ack> Ack;

@@ -20,7 +20,7 @@ public:
 
     uint32_t getSize() const;
 
-    static constexpr Tag tag = Tag::Connect;
+    static constexpr Tag tag = Tag::CONNECT;
     
 };
 

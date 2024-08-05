@@ -1,31 +1,37 @@
 #ifndef NETCOMMON_HPP
 #define NETCOMMON_HPP
 
+#include <stdexcept>
+#include <cstdint>
+
 struct NetReturn {
     
     enum ErrorCode : unsigned char {
         OK = 0,
         NOT_ENOUGH_SPACE,
         INVALID_DATA,
-        INVALID_STATE
+        INVALID_STATE,
+        CANDIDATE,
+        FILTERED,
+        SYSTEM_ERROR
     };
     
     uint32_t bytes;
     ErrorCode errorCode;
 };
 
-template<typename T, typename U>
-inline constexpr T alignUp(T base, U alignment) {
+template<typename T>
+inline constexpr T alignUp(T base, size_t alignment) {
     T tmp = base + alignment - 1;
-    return tmp - tmp % alignment;
+    return tmp - (size_t)tmp % alignment;
 }
 
-template<typename T, typename U>
-inline constexpr T alignDown(T base, U alignment) {
-    return base - base % alignment;
+template<typename T>
+inline constexpr T alignDown(T base, size_t alignment) {
+    return base - (size_t)base % alignment;
 }
 
-NetReturn netHandleInvalidState() {
+inline NetReturn netHandleInvalidState() {
 #ifdef DEBUG
     throw std::logic_error("Invalid state");
 #endif

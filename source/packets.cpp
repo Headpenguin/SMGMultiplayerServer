@@ -32,6 +32,12 @@ namespace implementation {
 
 NetReturn _Connect::netWriteToBuffer(void *buffer, uint32_t len) const {
     auto *packet = reinterpret_cast<implementation::Connect *>(buffer);
+    
+    static_assert(std::is_layout_compatible<
+        std::remove_reference<decltype(*packet)>::type, 
+        implementation::Connect
+    >());
+    
     if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
     *(uint32_t *)&packet->magic = htonl(CONNECT_MAGIC_UPPER);
@@ -44,7 +50,12 @@ NetReturn _Connect::netWriteToBuffer(void *buffer, uint32_t len) const {
 
 NetReturn _Connect::netReadFromBuffer(Packet<_Connect> *out, const void *buffer, uint32_t len) {
     const auto *packet = reinterpret_cast<const implementation::Connect*>(buffer);
-    static_assert(std::is_same<decltype(*packet), implementation::Connect>());
+    
+    static_assert(std::is_layout_compatible<
+        std::remove_reference<decltype(*packet)>::type, 
+        implementation::Connect
+    >());
+    
     if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
     if(*(uint32_t*)&packet->magic != htonl(CONNECT_MAGIC_UPPER)
@@ -61,12 +72,17 @@ NetReturn _Connect::netReadFromBuffer(Packet<_Connect> *out, const void *buffer,
 }
 
 uint32_t _Connect::getSize() const {
-    return sizeof implementation::Connect;
+    return sizeof(implementation::Connect);
 }
 
 NetReturn _Ack::netWriteToBuffer(void *buffer, uint32_t len) const {
     auto *packet = reinterpret_cast<implementation::Ack*>(buffer);
-    static_assert(std::is_same<decltype(*packet), implementation::Ack>());
+    
+    static_assert(std::is_layout_compatible<
+        std::remove_reference<decltype(*packet)>::type,
+        implementation::Ack
+    >());
+    
     if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
     packet->seqNum = htonl(seqNum);
@@ -77,6 +93,12 @@ NetReturn _Ack::netWriteToBuffer(void *buffer, uint32_t len) const {
 
 NetReturn _Ack::netReadFromBuffer(Packet<_Ack> *out, const void *buffer, uint32_t len) {
     const auto *packet = reinterpret_cast<const implementation::Ack*>(buffer);
+    
+    static_assert(std::is_layout_compatible<
+        std::remove_reference<decltype(*packet)>::type,
+        implementation::Ack
+    >());
+
     if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
     out->seqNum = ntohl(packet->seqNum);
@@ -84,7 +106,7 @@ NetReturn _Ack::netReadFromBuffer(Packet<_Ack> *out, const void *buffer, uint32_
 }
 
 uint32_t _Ack::getSize() const {
-    return sizeof implementation::Ack;
+    return sizeof(implementation::Ack);
 }
 
 }
