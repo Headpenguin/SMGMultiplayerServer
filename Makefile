@@ -36,11 +36,11 @@ endif #2
 
 endif #1
 
-INCLUDE := -i $(INCLUDE_PREFIX)
+INCLUDE := -I $(INCLUDE_PREFIX)
 
-WARNFLAGS := -wall
+WARNFLAGS := -Wall
 
-CXXFLAGS := -c $(INCLUDE) $(WARNFLAGS)
+CXXFLAGS := -c $(INCLUDE) $(WARNFLAGS) -std=c++20
 
 DEBUG_FLAGS := -g
 

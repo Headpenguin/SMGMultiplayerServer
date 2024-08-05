@@ -17,6 +17,10 @@ public:
 
     NetReturn netWriteToBuffer(void *buffer, uint32_t len) const;
     static NetReturn netReadFromBuffer(Packet<_Connect> *out, const void *buffer, uint32_t len);
+
+    uint32_t getSize() const;
+
+    static constexpr Tag tag = Tag::Connect;
     
 };
 

@@ -1,4 +1,11 @@
 #include "packets/connect.hpp"
+#include "packets/ack.hpp"
+
+#include <cstring>
+
+extern "C" {
+#include <arpa/inet.h>
+}
 
 namespace Packets {
 
@@ -24,45 +31,61 @@ namespace implementation {
 }
 
 NetReturn _Connect::netWriteToBuffer(void *buffer, uint32_t len) const {
-    implementation::Connect *packet = buffer;
-    if(len < sizeof *packet) return {sizeof *packet, ErrorCode::NOT_ENOUGH_SPACE};
+    auto *packet = reinterpret_cast<implementation::Connect *>(buffer);
+    if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
-    memcpy(&packet->magic, &magic, sizeof packet->magic);
+    *(uint32_t *)&packet->magic = htonl(CONNECT_MAGIC_UPPER);
+    *(uint32_t *)&packet->magic[4] = htonl(CONNECT_MAGIC_LOWER);
     packet->majorVersion = htonl(majorVersion);
     packet->minorVersion = htonl(minorVersion);
 
-    return {sizeof *packet, ErrorCode::OK};
+    return {sizeof *packet, NetReturn::OK};
 }
 
 NetReturn _Connect::netReadFromBuffer(Packet<_Connect> *out, const void *buffer, uint32_t len) {
-    implementation::Connect *packet = buffer;
-    if(len < sizeof *packet) return {sizeof *packet, ErrorCode::NOT_ENOUGH_SPACE};
+    const auto *packet = reinterpret_cast<const implementation::Connect*>(buffer);
+    static_assert(std::is_same<decltype(*packet), implementation::Connect>());
+    if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
     if(*(uint32_t*)&packet->magic != htonl(CONNECT_MAGIC_UPPER)
-            || *(uint32_t*)&packet->magic + 1 != htonl(CONNECT_MAGIC_LOWER)) {
-        return {0, ErrorCode::INVALID_DATA};
+            || *(uint32_t*)&packet->magic[4] != htonl(CONNECT_MAGIC_LOWER)) {
+        return {0, NetReturn::INVALID_DATA};
     }
 
     out->majorVersion = ntohl(packet->majorVersion);
     out->minorVersion = ntohl(packet->minorVersion);
 
-    return {sizeof *packet, ErrorCode::OK};
+    // Remember to update getSize if the size changes
+    return {sizeof *packet, NetReturn::OK};
 
+}
+
+uint32_t _Connect::getSize() const {
+    return sizeof implementation::Connect;
 }
 
 NetReturn _Ack::netWriteToBuffer(void *buffer, uint32_t len) const {
-    implementation::Ack *packet = buffer;
-    if(len < sizeof *packet) return {sizeof *packet, ErrorCode::NOT_ENOUGH_SPACE};
+    auto *packet = reinterpret_cast<implementation::Ack*>(buffer);
+    static_assert(std::is_same<decltype(*packet), implementation::Ack>());
+    if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
     packet->seqNum = htonl(seqNum);
-    return {sizeof *packet, ErrorCode::OK};
+
+    // Remember to update getSize if the size changes
+    return {sizeof *packet, NetReturn::OK};
 }
 
 NetReturn _Ack::netReadFromBuffer(Packet<_Ack> *out, const void *buffer, uint32_t len) {
-    implementation::Ack *packet = buffer;
-    if(len < sizeof *packet) return {sizeof *packet, ErrorCode::NOT_ENOUGH_SPACE};
+    const auto *packet = reinterpret_cast<const implementation::Ack*>(buffer);
+    if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
     out->seqNum = ntohl(packet->seqNum);
-    return {sizeof *packet, ErrorCode::OK};
+    return {sizeof *packet, NetReturn::OK};
+}
+
+uint32_t _Ack::getSize() const {
+    return sizeof implementation::Ack;
+}
+
 }
 
