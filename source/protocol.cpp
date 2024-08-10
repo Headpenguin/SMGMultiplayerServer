@@ -74,11 +74,9 @@ void PacketHolder::resizeRead() {
     }
 }
 
-NetReturn PacketHolder::rollbackSendHead(uint8_t *&packetBuffer, uint32_t size) {
-    resizeRead();
 
-    uint8_t *tmpHead = readEnd;
-    uint8_t *priorSendHead = sendHead, *priorReadEnd = readEnd;
+static uint8_t* calculateNewSendHead(uint8_t *tmpHead, uint32_t size) {
+
 
     tmpHead -= size;
     tmpHead = alignDown(tmpHead, Packets::PACKET_ALIGNMENT);
@@ -90,11 +88,23 @@ NetReturn PacketHolder::rollbackSendHead(uint8_t *&packetBuffer, uint32_t size) 
     tmpHead -= sizeof(ControlSeq::Code);
     tmpHead = alignDown(tmpHead, alignof(ControlSeq::Code));
 
-    if(size > bufferLen) return {0, NetReturn::NOT_ENOUGH_SPACE};
+    return tmpHead;
+}
+NetReturn PacketHolder::rollbackSendHead(uint8_t *&packetBuffer, uint32_t size, 
+    uint8_t destination) 
+{
+    resizeRead();
+
+    uint8_t *tmpHead = readEnd;
+    uint8_t *priorSendHead = sendHead, *priorReadEnd = readEnd;
+
+    tmpHead = calculateNewSendHead(tmpHead, size);
+
     if(tmpHead < buffer) {
-        tmpHead = buffer + bufferLen - size;
+        tmpHead = calculateNewSendHead(buffer + bufferLen, size);
+        if(tmpHead < buffer) return netHandleInvalidState();
     }
-    if(!isLocationValid(sendHead, readHead, tmpHead)) {
+    if(!isLocationValid(readEnd, readHead, tmpHead)) {
         return {0, NetReturn::NOT_ENOUGH_SPACE};
     }
 
@@ -108,7 +118,7 @@ NetReturn PacketHolder::rollbackSendHead(uint8_t *&packetBuffer, uint32_t size) 
     packetControl->offsetToNextSend = priorSendHead - packetControlLoc;
     packetControl->offsetToNextReadEnd = priorReadEnd - packetControlLoc;
     packetControl->size = size;
-    packetControl->senderId = ~0;
+    packetControl->senderId = destination;
 
     packetBuffer = alignUp(tmpHead + sizeof(Packets::Tag), Packets::PACKET_ALIGNMENT);
     return {0, NetReturn::OK};
@@ -194,7 +204,7 @@ NetReturn PacketHolder::sendPacket(Transmission::Writer &writer) {
             packet -= sizeof(Packets::Tag);
             
             NetReturn res = writer.write(packet, 
-                packetControl->size + sizeof(Packets::Tag));
+                packetControl->size + sizeof(Packets::Tag), packetControl->senderId);
 
             if(res.errorCode != NetReturn::OK) return res;
 
@@ -212,11 +222,7 @@ NetReturn PacketHolder::sendPacket(Transmission::Writer &writer) {
     return {}; // unreachable
 }
 
-NetReturn PacketHolder::readPacket(Transmission::Reader &reader) {
-    resizeRead();
-    
-    uint8_t *tmpHead = readHead;
-    uint8_t *oldHead = readHead;
+static uint8_t* calculateEnd(uint8_t *tmpHead) {
 
     tmpHead = alignUp(tmpHead, alignof(ControlSeq::Code));
     tmpHead += sizeof(ControlSeq::Code);
@@ -227,24 +233,39 @@ NetReturn PacketHolder::readPacket(Transmission::Reader &reader) {
     tmpHead += sizeof(Packets::Tag);
     tmpHead = alignUp(tmpHead, Packets::PACKET_ALIGNMENT);
     tmpHead += Packets::MAX_PACKET_SIZE;
+    return tmpHead;
+}
 
-    assert(tmpHead > readHead);
-    // Buffer must always be large enough to sustain at least one transmission
-    if(static_cast<size_t>(tmpHead - readHead) > bufferLen) {
-        return netHandleInvalidState();
+void PacketHolder::initCachedReadHead() {
+    cachedReadHead = calculateEnd(buffer);
+    if(static_cast<size_t>(cachedReadHead - buffer) > bufferLen) {
+        netHandleInvalidState();
     }
+}
 
-    assert(tmpHead > buffer);
-    if(static_cast<size_t>(tmpHead - buffer) > bufferLen) {
-        tmpHead -= bufferLen;
+uint8_t* PacketHolder::makeValid(uint8_t *start) {
+
+    uint8_t *tmp = calculateEnd(start);
+    if(static_cast<size_t>(tmp - buffer) > bufferLen) {
+        start = buffer;
+        assert(static_cast<size_t>(calculateEnd(buffer) - buffer) < bufferLen);
     }
+    return start;
 
-    if(!isLocationValid(sendHead, readHead, tmpHead)) {
+}
+
+NetReturn PacketHolder::readPacket(Transmission::Reader &reader) {
+    resizeRead();
+    
+    uint8_t *tmpHead = readHead;
+    uint8_t *oldHead = readHead;
+
+    if(!isLocationValid(readEnd, readHead, cachedReadHead)) {
         return {0, NetReturn::NOT_ENOUGH_SPACE};
     }
+    readHead = cachedReadHead;
+    cachedReadHead = makeValid(calculateEnd(readHead));
 
-    std::swap(readHead, tmpHead);
-    
     *consumeBuffer<ControlSeq::Code>(tmpHead) = ControlSeq::PACKET;
     auto *packetControl = consumeBuffer<ControlSeq::Packet>(tmpHead);
     
@@ -264,7 +285,8 @@ NetReturn PacketHolder::readPacket(Transmission::Reader &reader) {
         return {0, NetReturn::INVALID_DATA};
     }
 
-    readHead = tmpHead + res.bytes;
+    readHead = makeValid(tmpHead + res.bytes);
+    cachedReadHead = makeValid(calculateEnd(readHead));
 
     packetControl->size = res.bytes - sizeof(Packets::Tag);
     packetControl->offsetToNextSend = readHead - reinterpret_cast<const uint8_t *>(packetControl);

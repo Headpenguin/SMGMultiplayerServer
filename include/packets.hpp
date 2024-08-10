@@ -14,6 +14,8 @@ constexpr uint32_t MAX_PACKET_SIZE = 1 << 7;
 enum class Tag : uint32_t {
     CONNECT = 0,
     ACK,
+    SERVER_INITIAL_RESPONSE,
+    PLAYER_POSITION,
     MAX_TAG
 };
 

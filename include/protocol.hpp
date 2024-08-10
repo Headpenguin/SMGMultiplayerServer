@@ -16,6 +16,9 @@ namespace Transmission {
 
 namespace Protocol {
 
+constexpr uint32_t MAJOR = 0;
+constexpr uint32_t MINOR = 0;
+
 
 class PacketHolder {
     
@@ -24,6 +27,7 @@ class PacketHolder {
  
     // Where to place the next packet to be read   
     uint8_t *readHead;
+    uint8_t *cachedReadHead; 
 
     // End of read area (not always up-to-date)
     uint8_t *readEnd;
@@ -39,12 +43,14 @@ class PacketHolder {
     void resizeRead();
     
     static inline bool isLocationValid(const uint8_t *first, const uint8_t *last, const uint8_t *location) {
-        bool isLocationBetween = location < last && location > first;
-        if(first <= last) return !isLocationBetween;
-        else return isLocationBetween;
+        if(first <= last) return location > last || location < first;
+        else return location > last && location < first; // first and last are backwards
     }
 
-    NetReturn rollbackSendHead(uint8_t *&packetBuffer, uint32_t packetSize);
+    void initCachedReadHead();
+    uint8_t* makeValid(uint8_t*);
+
+    NetReturn rollbackSendHead(uint8_t *&packetBuffer, uint32_t packetSize, uint8_t destination);
 protected:
 
     struct PacketConstructionArgs {
@@ -59,18 +65,25 @@ public:
     // Both the start and end of the buffer must be well-aligned
     inline PacketHolder(void *_buffer, uint32_t bufferLen) 
         : buffer(reinterpret_cast<uint8_t *>(_buffer)), bufferLen(bufferLen), 
-        readHead(buffer),  readEnd(buffer + bufferLen), processHead(buffer), 
-        processEnd(buffer), sendHead(buffer) {}
+        readHead(buffer),  readEnd(buffer), processHead(buffer), 
+        processEnd(buffer), sendHead(buffer) 
+    {
+        initCachedReadHead();
+    }
 
-    // Does not hold a reference to `packet` once call completes 
     template<typename T>
     NetReturn addPacket(const Packets::Packet<T> &packet) {
+        return addPacket(packet, 0xFF);
+    }
+    // Does not hold a reference to `packet` once call completes 
+    template<typename T>
+    NetReturn addPacket(const Packets::Packet<T> &packet, uint8_t destination) {
         
         uint8_t *packetBuffer;
 
         uint32_t size = packet.getSize();
 
-        NetReturn res = rollbackSendHead(packetBuffer, size);
+        NetReturn res = rollbackSendHead(packetBuffer, size, destination);
         if(res.errorCode != NetReturn::OK) return res;
 
         auto *tag 
@@ -120,6 +133,7 @@ public:
         
         return res;
     }
+    inline T& getPacketFactory() {return packetFactory;}
 };
 
 }

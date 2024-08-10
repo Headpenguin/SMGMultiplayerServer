@@ -4,6 +4,8 @@
 #include "packets.hpp"
 #include "packets/connect.hpp"
 #include "packets/ack.hpp"
+#include "packets/serverInitialResponse.hpp"
+#include "packets/playerPosition.hpp"
 
 namespace Packets {
 
@@ -16,6 +18,8 @@ public:
         union {
             Connect connect;
             Ack ack;
+            ServerInitialResponse sip;
+            PlayerPosition playerPos;
         };
         PacketUnion() {}
     };

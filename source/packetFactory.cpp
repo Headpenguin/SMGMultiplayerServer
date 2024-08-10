@@ -1,6 +1,4 @@
 #include "packetFactory.hpp"
-#include "packets/connect.hpp"
-#include "packets/ack.hpp"
 
 namespace Packets {
 
@@ -15,7 +13,10 @@ NetReturn PacketFactory::constructPacket(Tag tag, PacketUnion *pu,
             return Connect::netReadFromBuffer(&pu->connect, buffer, len);
         case Tag::ACK:
             return Ack::netReadFromBuffer(&pu->ack, buffer, len);
-
+        case Tag::SERVER_INITIAL_RESPONSE:
+            return ServerInitialResponse::netReadFromBuffer(&pu->sip, buffer, len);
+        case Tag::PLAYER_POSITION:
+            return PlayerPosition::netReadFromBuffer(&pu->playerPos, buffer, len);
         case Tag::MAX_TAG: // unreachable
             break;
     }

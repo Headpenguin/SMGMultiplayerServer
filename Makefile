@@ -55,7 +55,7 @@ release: CXXFLAGS += $(RELEASE_FLAGS)
 O_FILES := packets.o packetFactory.o transmission.o protocol.o
 O_FILES := $(foreach obj, $(O_FILES), $(OBJ_PREFIX)/$(obj))
 
-TEST_BINS := basicClient
+TEST_BINS := basicClient mpClient
 TEST_OBJS := $(foreach bin, $(TEST_BINS), $(TEST_OBJ_PREFIX)/$(bin).o);
 TEST_BINS := $(foreach bin, $(TEST_BINS), $(TEST_PREFIX)/$(bin))
 

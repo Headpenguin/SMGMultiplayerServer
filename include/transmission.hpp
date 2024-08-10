@@ -26,6 +26,11 @@ public:
     // error code NetReturn::CANDIDATE. Maybe in the future return
     // FILTERED if necessary
     NetReturn getId(sockaddr_in *addr);
+    inline NetReturn getId(const Connection *c) const {
+        ssize_t res = c - connections;
+        if(res < len && res > 0) return {static_cast<uint32_t>(res), NetReturn::OK};
+        return {0, NetReturn::INVALID_DATA};
+    }
 
     inline bool isCandidate(uint8_t id) const {
         return id < len ? connections[id].isCandidate : false;
@@ -54,6 +59,11 @@ public:
         return false;
     }
 
+    inline const Connection* getConnection(uint8_t id) const {
+        if(id < len) return connections + id;
+        else return nullptr;
+    }
+
     inline const Connection* cbegin() const {return connections;}
     inline const Connection* cend() const {return connections + len;}
     
@@ -69,7 +79,9 @@ public:
     inline Writer(int socket, const ConnectionHolder *holder) 
         : socket(socket), holder(holder) {}
 
-    NetReturn write(const void *data, uint32_t size);
+    // destination: 0xff = everyone, if the msb is set, send only to destination,
+    // otherwise send to all but destination
+    NetReturn write(const void *data, uint32_t size, uint8_t destination);
 };
 
 class Reader {
