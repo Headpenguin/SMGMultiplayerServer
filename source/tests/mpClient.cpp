@@ -2,6 +2,8 @@
 #include "packets/serverInitialResponse.hpp"
 #include "packets/playerPosition.hpp"
 #include "netCommon.hpp"
+#include <cmath>
+#include <numbers>
 
 extern "C" {
 
@@ -16,10 +18,17 @@ extern "C" {
 const char *SERVER_ADDR = "127.0.0.1";
 uint16_t serverPort = 5000;
 
+const static float MAX_VELOCITY = 10.0f;
+const static float MAX_ACCELERATION = 10.0f;
+const static float TOLERANCE = 20.0f;
+const static float TOLERANCE_D1 = 0.01f;
+
 int main() {
     Vec position, velocity, direction;
+    Vec cDestination, cPosition, cVelocity, cAcceleration;
     uint8_t recvId;
     uint8_t timer = 0;
+    bool arrive = true;
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
 
     if(fd < 0) return -1;
@@ -39,11 +48,44 @@ int main() {
     uint8_t id = ~0;
 
     pollfd pfd = {fd, POLLIN};
+    pollfd pfdin = {STDIN_FILENO, POLLIN};
     Packets::PlayerPosition pos;
     pos.position = {0.0f, 0.0f, 0.0f};
     pos.velocity = {0.0f, 0.0f, 0.0f};
     pos.direction = {0.0f, 0.0f, 0.0f};
     while(!quit) {
+        poll(&pfdin, 1, 0);
+        if(pfdin.revents & POLLIN) {
+            char *line = nullptr;
+            size_t n;
+            ssize_t res = getline(&line, &n, stdin);
+            if(res >= 0) {
+                float x, y, z;
+                if(sscanf(line, "(%f, %f, %f)", &x, &y, &z) == 3) cDestination = {x, y, z};
+                else fprintf(stderr, "Unable to parse input\n");
+                arrive = false;
+            }
+            free(line);
+
+        }
+        cAcceleration = cDestination - cPosition;
+        if(cAcceleration.equal(Vec::zero(), TOLERANCE)) {
+            arrive = true;
+            cAcceleration = Vec::zero();
+        }
+        else {
+            cAcceleration.setLength(MAX_ACCELERATION);
+        
+
+            cVelocity += cAcceleration;
+            if(cVelocity.equal(Vec::zero(), TOLERANCE_D1)) cVelocity = Vec::zero();
+            else cVelocity.setLength(MAX_VELOCITY);
+
+            cPosition += cVelocity;
+            pos.position = cPosition;
+        }
+//            printf("(%f, %f, %f)\n", pos.position.x, pos.position.y, pos.position.z);
+            
 
         *(uint32_t*)buffer = ntohl((uint32_t)(connected ? Packets::Tag::PLAYER_POSITION : Packets::Tag::CONNECT));
 //        buffer = alignUp(buffer, );
@@ -97,7 +139,7 @@ int main() {
             Packets::PlayerPosition pos;
             NetReturn res = Packets::PlayerPosition::netReadFromBuffer(&pos, buffer + 4, amtRead - 4);
             if(res.errorCode != NetReturn::OK) {
-                fprintf(stderr, "(main) Failed to read (%d, %d)\n", res.errorCode, amtRead);
+                fprintf(stderr, "(main) Failed to read (%d, %ld)\n", res.errorCode, amtRead);
                 continue; 
             }
             position = pos.position;
@@ -106,7 +148,7 @@ int main() {
             recvId = pos.playerId;
             if(timer == 0) {
                 timer = 60;
-                printf("%d: [%f %f %f] [%f %f %f] [%f %f %f]\n", recvId, position.x, position.y, position.z, velocity.x, velocity.y, velocity.z, direction.x, direction.y, direction.z);
+                //printf("%d: [%f %f %f] [%f %f %f] [%f %f %f]\n", recvId, position.x, position.y, position.z, velocity.x, velocity.y, velocity.z, direction.x, direction.y, direction.z);
             }
             else timer--;
             
