@@ -19,7 +19,7 @@ const char *SERVER_ADDR = "127.0.0.1";
 uint16_t serverPort = 5000;
 
 const static float MAX_VELOCITY = 10.0f;
-const static float MAX_ACCELERATION = 10.0f;
+const static float MAX_ACCELERATION = 1.0f;
 const static float TOLERANCE = 20.0f;
 const static float TOLERANCE_D1 = 0.01f;
 
