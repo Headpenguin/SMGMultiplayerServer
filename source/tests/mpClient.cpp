@@ -53,6 +53,8 @@ int main() {
     pos.position = {0.0f, 0.0f, 0.0f};
     pos.velocity = {0.0f, 0.0f, 0.0f};
     pos.direction = {1.0f, 0.0f, 0.0f};
+    pos.currentAnimation = -1;
+    pos.defaultAnimation = -1;
     bool pposo = false;
     while(!quit) {
         poll(&pfdin, 1, 0);

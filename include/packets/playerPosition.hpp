@@ -13,6 +13,9 @@ public:
     Vec velocity;
     Vec direction;
 
+    int32_t currentAnimation;
+    int32_t defaultAnimation;
+
     inline _PlayerPosition() {}
 
     NetReturn netWriteToBuffer(void *buffer, uint32_t len) const;

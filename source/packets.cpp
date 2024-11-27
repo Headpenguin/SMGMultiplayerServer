@@ -45,6 +45,9 @@ namespace implementation {
         uint32_t directionX;
         uint32_t directionY;
         uint32_t directionZ;
+
+        uint32_t currentAnimation;
+        uint32_t defaultAnimation;
     };
 
     struct ServerInitialResponse {
@@ -201,6 +204,9 @@ NetReturn _PlayerPosition::netWriteToBuffer(void *buffer, uint32_t len) const {
     packet->directionY = htonl(std::bit_cast<uint32_t>(direction.y));
     packet->directionZ = htonl(std::bit_cast<uint32_t>(direction.z));
 
+    packet->currentAnimation = htonl(std::bit_cast<uint32_t>(currentAnimation));
+    packet->defaultAnimation = htonl(std::bit_cast<uint32_t>(defaultAnimation));
+
     // Remember to update getSize if the size changes
     return {sizeof *packet, NetReturn::OK};
 }
@@ -234,6 +240,9 @@ NetReturn _PlayerPosition::netReadFromBuffer(Packet<_PlayerPosition> *out, const
         std::bit_cast<float>(ntohl(packet->directionY)),
         std::bit_cast<float>(ntohl(packet->directionZ))
     };
+
+    out->currentAnimation = std::bit_cast<int32_t>(ntohl(packet->currentAnimation));
+    out->defaultAnimation = std::bit_cast<int32_t>(ntohl(packet->defaultAnimation));
 
     return {sizeof *packet, NetReturn::OK};
 }
