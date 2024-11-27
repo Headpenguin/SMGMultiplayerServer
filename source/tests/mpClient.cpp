@@ -25,7 +25,7 @@ const static float TOLERANCE_D1 = 0.01f;
 
 int main() {
     Vec position, velocity, direction;
-    Vec cDestination, cPosition, cVelocity, cAcceleration;
+    Vec cDestination{0, 0, 0}, cPosition, cVelocity, cAcceleration;
     uint8_t recvId;
     uint8_t timer = 0;
     bool arrive = true;
@@ -52,7 +52,8 @@ int main() {
     Packets::PlayerPosition pos;
     pos.position = {0.0f, 0.0f, 0.0f};
     pos.velocity = {0.0f, 0.0f, 0.0f};
-    pos.direction = {0.0f, 0.0f, 0.0f};
+    pos.direction = {1.0f, 0.0f, 0.0f};
+    bool pposo = false;
     while(!quit) {
         poll(&pfdin, 1, 0);
         if(pfdin.revents & POLLIN) {
@@ -61,8 +62,11 @@ int main() {
             ssize_t res = getline(&line, &n, stdin);
             if(res >= 0) {
                 float x, y, z;
-                if(sscanf(line, "(%f, %f, %f)", &x, &y, &z) == 3) cDestination = {x, y, z};
-                else fprintf(stderr, "Unable to parse input\n");
+                if(sscanf(line, "(%f, %f, %f)", &x, &y, &z) == 3) pos.direction = {x, y, z};
+                else {
+                    printf("Toggle player pos output\n");
+                    pposo = !pposo;
+                }
                 arrive = false;
             }
             free(line);
@@ -148,7 +152,10 @@ int main() {
             recvId = pos.playerId;
             if(timer == 0) {
                 timer = 60;
-                //printf("%d: [%f %f %f] [%f %f %f] [%f %f %f]\n", recvId, position.x, position.y, position.z, velocity.x, velocity.y, velocity.z, direction.x, direction.y, direction.z);
+                if(pposo) {
+                    printf("%d: [%f %f %f] [%f %f %f] [%f %f %f]\n", recvId, position.x, position.y, position.z, velocity.x, velocity.y, velocity.z, direction.x, direction.y, direction.z);
+                    printf("[%f %f %f]\n", position.x, position.y, sqrt(1 - position.x * position.x - position.y * position.y));
+                }
             }
             else timer--;
             
