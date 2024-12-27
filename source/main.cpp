@@ -25,7 +25,7 @@ static uint16_t port =
 #ifdef DEFAULT_PORT
 	DEFAULT_PORT;
 #else
-	5000;
+	5029;
 #endif
 
 static const char *bindInetAddrStr = 

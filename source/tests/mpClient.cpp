@@ -16,7 +16,7 @@ extern "C" {
 }
 
 const char *SERVER_ADDR = "127.0.0.1";
-uint16_t serverPort = 5000;
+uint16_t serverPort = 5029;
 
 const static float MAX_VELOCITY = 10.0f;
 const static float MAX_ACCELERATION = 1.0f;
@@ -64,7 +64,12 @@ int main() {
             ssize_t res = getline(&line, &n, stdin);
             if(res >= 0) {
                 float x, y, z;
-                if(sscanf(line, "(%f, %f, %f)", &x, &y, &z) == 3) pos.direction = {x, y, z};
+                int32_t curr, def;
+                if(sscanf(line, "(%f, %f, %f), %d, %d", &x, &y, &z, &curr, &def) == 5) {
+                    pos.position = {x, y, z};
+                    pos.currentAnimation = curr;
+                    pos.defaultAnimation = def;
+                }
                 else {
                     printf("Toggle player pos output\n");
                     pposo = !pposo;
@@ -157,6 +162,7 @@ int main() {
                 if(pposo) {
                     printf("%d: [%f %f %f] [%f %f %f] [%f %f %f]\n", recvId, position.x, position.y, position.z, velocity.x, velocity.y, velocity.z, direction.x, direction.y, direction.z);
                     printf("[%f %f %f]\n", position.x, position.y, sqrt(1 - position.x * position.x - position.y * position.y));
+                    printf("%d %d\n", pos.currentAnimation, pos.defaultAnimation);
                 }
             }
             else timer--;
