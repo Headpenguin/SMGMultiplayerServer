@@ -48,6 +48,7 @@ namespace implementation {
 
         uint32_t currentAnimation;
         uint32_t defaultAnimation;
+        uint32_t animationSpeed;
     };
 
     struct ServerInitialResponse {
@@ -206,6 +207,7 @@ NetReturn _PlayerPosition::netWriteToBuffer(void *buffer, uint32_t len) const {
 
     packet->currentAnimation = htonl(std::bit_cast<uint32_t>(currentAnimation));
     packet->defaultAnimation = htonl(std::bit_cast<uint32_t>(defaultAnimation));
+    packet->animationSpeed = htonl(std::bit_cast<uint32_t>(animationSpeed));
 
     // Remember to update getSize if the size changes
     return {sizeof *packet, NetReturn::OK};
@@ -243,6 +245,8 @@ NetReturn _PlayerPosition::netReadFromBuffer(Packet<_PlayerPosition> *out, const
 
     out->currentAnimation = std::bit_cast<int32_t>(ntohl(packet->currentAnimation));
     out->defaultAnimation = std::bit_cast<int32_t>(ntohl(packet->defaultAnimation));
+    out->animationSpeed = std::bit_cast<float>(ntohl(packet->animationSpeed));
+    
 
     return {sizeof *packet, NetReturn::OK};
 }

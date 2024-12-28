@@ -15,6 +15,7 @@ public:
 
     int32_t currentAnimation;
     int32_t defaultAnimation;
+    float animationSpeed;
 
     inline _PlayerPosition() {}
 

@@ -63,12 +63,13 @@ int main() {
             size_t n;
             ssize_t res = getline(&line, &n, stdin);
             if(res >= 0) {
-                float x, y, z;
+                float x, y, z, speed;
                 int32_t curr, def;
-                if(sscanf(line, "(%f, %f, %f), %d, %d", &x, &y, &z, &curr, &def) == 5) {
+                if(sscanf(line, "(%f, %f, %f), %d, %d, %f", &x, &y, &z, &curr, &def, &speed) == 6) {
                     pos.position = {x, y, z};
                     pos.currentAnimation = curr;
                     pos.defaultAnimation = def;
+                    pos.animationSpeed = speed;
                 }
                 else {
                     printf("Toggle player pos output\n");
@@ -163,6 +164,7 @@ int main() {
                     printf("%d: [%f %f %f] [%f %f %f] [%f %f %f]\n", recvId, position.x, position.y, position.z, velocity.x, velocity.y, velocity.z, direction.x, direction.y, direction.z);
                     printf("[%f %f %f]\n", position.x, position.y, sqrt(1 - position.x * position.x - position.y * position.y));
                     printf("%d %d\n", pos.currentAnimation, pos.defaultAnimation);
+                    printf("%f\n", pos.animationSpeed);
                 }
             }
             else timer--;
