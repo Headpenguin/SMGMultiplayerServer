@@ -16,7 +16,26 @@ enum class Tag : uint32_t {
     ACK,
     SERVER_INITIAL_RESPONSE,
     PLAYER_POSITION,
+    TIME_QUERY,
+    TIME_RESPONSE,
     MAX_TAG
+};
+
+namespace implementation {
+    class ReliablePacket;
+}
+
+class ReliablePacketCode {
+protected:
+    uint32_t seqNum;
+public:
+    inline ReliablePacketCode() {}
+    inline ReliablePacketCode(uint32_t seqNum) : seqNum(seqNum) {}
+
+    inline bool verify(const ReliablePacketCode &other) const {
+        return other.seqNum == seqNum;
+    }
+    friend class implementation::ReliablePacket;
 };
 
 template<typename T>

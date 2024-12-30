@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <cstdio>
+#include <chrono>
 
 #include "protocol.hpp"
 #include "packets.hpp"
@@ -111,8 +112,10 @@ int main() {
 
 	Transmission::ConnectionHolder connectionHolder(connectionBuffer, connectionBufferSize);
 
-	Transmission::Reader reader(fd, &connectionHolder);
-	Transmission::Writer writer(fd, &connectionHolder);
+    Transmission::Reader reader(fd, &connectionHolder);
+    Transmission::Writer writer(fd, &connectionHolder);
+
+    const auto initialTime = std::chrono::steady_clock::now();
 
 	printf("Hit enter to close the server\n");
 
@@ -197,6 +200,7 @@ int main() {
                 }
 
                 case Packets::Tag::ACK:
+                case Packets::Tag::TIME_RESPONSE:
                 case Packets::Tag::SERVER_INITIAL_RESPONSE:
                 {
                     pp.dropPacket();
@@ -219,6 +223,18 @@ int main() {
 
                     pp.finishProcessing();
 
+                    break;
+                }
+                case Packets::Tag::TIME_QUERY:
+                {
+                    NetReturn id = pp.getSenderId();
+                    if(id.errorCode != NetReturn::OK) netHandleInvalidState();
+                    const Packets::TimeQuery &tqp = pu.timeQuery;
+                    uint32_t t = std::chrono::duration_cast<std::chrono::milliseconds>
+                        (std::chrono::steady_clock::now() - initialTime).count();
+                    pp.addPacket(Packets::TimeResponse(t, tqp.check), 0x80 | id.bytes);
+                    pp.dropPacket();
+                    pp.finishProcessing();
                     break;
                 }
                 case Packets::Tag::MAX_TAG: // invalid state

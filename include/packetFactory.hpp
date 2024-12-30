@@ -6,6 +6,7 @@
 #include "packets/ack.hpp"
 #include "packets/serverInitialResponse.hpp"
 #include "packets/playerPosition.hpp"
+#include "packets/timeSync.hpp"
 
 namespace Packets {
 
@@ -20,6 +21,8 @@ public:
             Ack ack;
             ServerInitialResponse sip;
             PlayerPosition playerPos;
+            TimeQuery timeQuery;
+            TimeResponse timeResponse;
         };
         PacketUnion() {}
     };

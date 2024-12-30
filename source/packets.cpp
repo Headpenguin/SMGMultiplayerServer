@@ -2,6 +2,8 @@
 #include "packets/ack.hpp"
 #include "packets/serverInitialResponse.hpp"
 #include "packets/playerPosition.hpp"
+#include "timestamps.hpp"
+#include "packets/timeSync.hpp"
 
 #include <cstring>
 
@@ -17,6 +19,21 @@ const static uint32_t CONNECT_MAGIC_UPPER = CONNECT_MAGIC >> 32;
 
 
 namespace implementation {
+
+    template<typename T>
+    class PacketTimestamp {
+        uint32_t tMs; // Big endian
+    public:
+        PacketTimestamp(const ClockboundTimestamp<T> &t) : tMs(htonl(t.timeMs)) {}
+    };
+
+    class ReliablePacket {
+    protected:
+        uint32_t seqNum; // Big endian
+    public:
+        inline ReliablePacket(const ReliablePacketCode &check) : seqNum(htonl(check.seqNum)) {}
+        inline ReliablePacketCode toCode() const {return ReliablePacketCode(ntohl(seqNum));}
+    };
 
     struct Connect {
         uint8_t magic[8];
@@ -55,6 +72,16 @@ namespace implementation {
         uint32_t majorVersion;
         uint32_t minorVersion;
         uint8_t playerId;
+    };
+
+    struct TimeQuery {
+        uint32_t timeMs; // Big Endian
+        ReliablePacket check;
+    };
+
+    struct TimeResponse {
+        uint32_t timeMs; // Big Endian
+        ReliablePacket check;
     };
 
 }
@@ -253,6 +280,54 @@ NetReturn _PlayerPosition::netReadFromBuffer(Packet<_PlayerPosition> *out, const
 
 uint32_t _PlayerPosition::getSize() const {
     return sizeof(implementation::PlayerPosition);
+}
+
+NetReturn _TimeQuery::netWriteToBuffer(void *buffer, uint32_t len) const {
+    return {0xDEAD, NetReturn::SYSTEM_ERROR};
+}
+
+NetReturn _TimeQuery::netReadFromBuffer(TimeQuery *out, const void *buffer, uint32_t len) {
+    const auto *packet = reinterpret_cast<const implementation::TimeQuery*>(buffer);
+    
+    static_assert(std::is_layout_compatible<
+        std::remove_reference<decltype(*packet)>::type,
+        implementation::TimeQuery
+    >());
+
+    if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
+
+    out->timeMs = ntohl(packet->timeMs);
+    out->check = packet->check.toCode();
+
+    return {sizeof *packet, NetReturn::OK};
+}
+
+uint32_t _TimeQuery::getSize() const {
+    return sizeof(implementation::TimeQuery);
+}
+
+NetReturn _TimeResponse::netWriteToBuffer(void *buffer, uint32_t len) const {
+    auto *packet = reinterpret_cast<implementation::TimeResponse*>(buffer);
+    
+    static_assert(std::is_layout_compatible<
+        std::remove_reference<decltype(*packet)>::type,
+        implementation::TimeResponse
+    >());
+    
+    if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
+
+    packet->timeMs = htonl(timeMs);
+    packet->check = implementation::ReliablePacket(check);
+
+    return {sizeof *packet, NetReturn::OK};
+}
+
+NetReturn _TimeResponse::netReadFromBuffer(TimeResponse *, const void *, uint32_t) {
+    return {0, NetReturn::INVALID_DATA};
+}
+
+uint32_t _TimeResponse::getSize() const {
+    return sizeof(implementation::TimeResponse);
 }
 
 }

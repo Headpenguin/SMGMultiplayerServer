@@ -17,6 +17,10 @@ NetReturn PacketFactory::constructPacket(Tag tag, PacketUnion *pu,
             return ServerInitialResponse::netReadFromBuffer(&pu->sip, buffer, len);
         case Tag::PLAYER_POSITION:
             return PlayerPosition::netReadFromBuffer(&pu->playerPos, buffer, len);
+        case Tag::TIME_QUERY:
+            return TimeQuery::netReadFromBuffer(&pu->timeQuery, buffer, len);
+        case Tag::TIME_RESPONSE:
+            return TimeResponse::netReadFromBuffer(&pu->timeResponse, buffer, len);
         case Tag::MAX_TAG: // unreachable
             break;
     }
