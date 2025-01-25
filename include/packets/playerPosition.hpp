@@ -3,12 +3,17 @@
 
 #include "vec.hpp"
 
+#include "timestamps.hpp"
+
 namespace Packets {
 
 
 class _PlayerPosition {
 public:
     uint8_t playerId;
+
+    ServerTimestamp timestamp;
+
     Vec position;
     Vec velocity;
     Vec direction;
@@ -17,7 +22,13 @@ public:
     int32_t defaultAnimation;
     float animationSpeed;
 
-    inline _PlayerPosition() {}
+    enum {
+        O_STATE_HIPDROP = 1
+    }; // State Flags
+
+    uint8_t stateFlags;
+
+    inline _PlayerPosition() : timestamp(makeEmptyServerTimestamp()), stateFlags(0) {}
 
     NetReturn netWriteToBuffer(void *buffer, uint32_t len) const;
     static NetReturn netReadFromBuffer(Packet<_PlayerPosition> *out, const void *buffer, uint32_t len);

@@ -24,8 +24,14 @@ namespace implementation {
     class PacketTimestamp {
         uint32_t tMs; // Big endian
     public:
-        PacketTimestamp(const ClockboundTimestamp<T> &t) : tMs(htonl(t.timeMs)) {}
+        PacketTimestamp(const ClockboundTimestamp<T> &t) : 
+            tMs(htonl(std::bit_cast<uint32_t>(t.t.timeMs))) {}
+        ClockboundTimestamp<T> toHL() const { 
+            return {std::bit_cast<int32_t>(ntohl(tMs))}; 
+        }
     };
+
+    typedef PacketTimestamp<ServerClockTag> ServerPacketTimestamp;
 
     class ReliablePacket {
     protected:
@@ -49,7 +55,10 @@ namespace implementation {
 
     struct PlayerPosition {
         uint8_t playerId;
-        uint8_t padding[3];
+        uint8_t stateFlags;
+        uint8_t padding[2];
+
+        ServerPacketTimestamp timestamp;
 
         uint32_t positionX;
         uint32_t positionY;
@@ -66,6 +75,7 @@ namespace implementation {
         uint32_t currentAnimation;
         uint32_t defaultAnimation;
         uint32_t animationSpeed;
+        
     };
 
     struct ServerInitialResponse {
@@ -216,9 +226,11 @@ NetReturn _PlayerPosition::netWriteToBuffer(void *buffer, uint32_t len) const {
     if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
     packet->playerId = playerId;
+    packet->stateFlags = stateFlags;
     packet->padding[0] = 0;
     packet->padding[1] = 0;
-    packet->padding[2] = 0;
+
+    packet->timestamp = implementation::ServerPacketTimestamp(timestamp);
 
     packet->positionX = htonl(std::bit_cast<uint32_t>(position.x));
     packet->positionY = htonl(std::bit_cast<uint32_t>(position.y));
@@ -251,6 +263,10 @@ NetReturn _PlayerPosition::netReadFromBuffer(Packet<_PlayerPosition> *out, const
     if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
     out->playerId = packet->playerId;
+
+    out->stateFlags = packet->stateFlags;
+    
+    out->timestamp = packet->timestamp.toHL();
     
     out->position = {
         std::bit_cast<float>(ntohl(packet->positionX)),
