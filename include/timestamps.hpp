@@ -2,7 +2,7 @@
 #define TIMESTAMPS_HPP
 
 struct Timestamp {
-    uint32_t timeMs;
+    int32_t timeMs;
 };
 
 template<typename T>
@@ -13,5 +13,9 @@ struct ClockboundTimestamp {
 struct ServerClockTag {};
 
 typedef ClockboundTimestamp<ServerClockTag> ServerTimestamp;
+
+inline ServerTimestamp makeEmptyServerTimestamp() {
+    return {std::numeric_limits<int32_t>::min()};
+}
 
 #endif

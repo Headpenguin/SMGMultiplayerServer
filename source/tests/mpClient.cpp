@@ -55,6 +55,8 @@ int main() {
     pos.direction = {1.0f, 0.0f, 0.0f};
     pos.currentAnimation = -1;
     pos.defaultAnimation = -1;
+    pos.timestamp = {0};
+    int highest = -0x80000000;
     bool pposo = false;
     while(!quit) {
         poll(&pfdin, 1, 0);
@@ -63,13 +65,12 @@ int main() {
             size_t n;
             ssize_t res = getline(&line, &n, stdin);
             if(res >= 0) {
-                float x, y, z, speed;
-                int32_t curr, def;
-                if(sscanf(line, "(%f, %f, %f), %d, %d, %f", &x, &y, &z, &curr, &def, &speed) == 6) {
+                float x, y, z, vx, vy, vz;
+                uint32_t t;
+                if(sscanf(line, "(%f, %f, %f), (%f, %f, %f), %d", &x, &y, &z, &vx, &vy, &vz, &t) == 7) {
                     pos.position = {x, y, z};
-                    pos.currentAnimation = curr;
-                    pos.defaultAnimation = def;
-                    pos.animationSpeed = speed;
+                    pos.velocity = {vx, vy, vz};
+                    pos.timestamp = {t};
                 }
                 else {
                     printf("Toggle player pos output\n");
@@ -158,10 +159,11 @@ int main() {
             velocity = pos.velocity;
             direction = pos.direction;
             recvId = pos.playerId;
+            highest = pos.timestamp.t.timeMs > highest ? pos.timestamp.t.timeMs : highest;
             if(timer == 0) {
                 timer = 60;
                 if(pposo) {
-                    printf("%d: [%f %f %f] [%f %f %f] [%f %f %f]\n", recvId, position.x, position.y, position.z, velocity.x, velocity.y, velocity.z, direction.x, direction.y, direction.z);
+                    printf("%d: [%f %f %f] [%f %f %f] [%f %f %f] %d\n", recvId, position.x, position.y, position.z, velocity.x, velocity.y, velocity.z, direction.x, direction.y, direction.z, highest);
                     printf("[%f %f %f]\n", position.x, position.y, sqrt(1 - position.x * position.x - position.y * position.y));
                     printf("%d %d\n", pos.currentAnimation, pos.defaultAnimation);
                     printf("%f\n", pos.animationSpeed);
