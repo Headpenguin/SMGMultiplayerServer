@@ -56,7 +56,7 @@ int main() {
     pos.currentAnimation = -1;
     pos.defaultAnimation = -1;
     pos.timestamp = {0};
-    pos.stateFlags |= pos.O_STATE_HIPDROP;
+    //pos.stateFlags |= pos.O_STATE_HIPDROP;
     int highest = -0x80000000;
     bool pposo = false;
     while(!quit) {
@@ -71,7 +71,7 @@ int main() {
                 if(sscanf(line, "(%f, %f, %f), (%f, %f, %f), %d", &x, &y, &z, &vx, &vy, &vz, &t) == 7) {
                     pos.position = {x, y, z};
                     pos.velocity = {vx, vy, vz};
-                    pos.timestamp = {t};
+                    if(t) pos.timestamp = {t};
                 }
                 else {
                     printf("Toggle player pos output\n");
@@ -100,7 +100,7 @@ int main() {
         }
 //            printf("(%f, %f, %f)\n", pos.position.x, pos.position.y, pos.position.z);
             
-
+        pos.timestamp = {highest};
         *(uint32_t*)buffer = ntohl((uint32_t)(connected ? Packets::Tag::PLAYER_POSITION : Packets::Tag::CONNECT));
 //        buffer = alignUp(buffer, );
         NetReturn res;
