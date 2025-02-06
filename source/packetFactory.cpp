@@ -21,6 +21,8 @@ NetReturn PacketFactory::constructPacket(Tag tag, PacketUnion *pu,
             return TimeQuery::netReadFromBuffer(&pu->timeQuery, buffer, len);
         case Tag::TIME_RESPONSE:
             return TimeResponse::netReadFromBuffer(&pu->timeResponse, buffer, len);
+        case Tag::STAR_PIECE:
+            return StarPiece::netReadFromBuffer(&pu->starPiece, buffer, len);
         case Tag::MAX_TAG: // unreachable
             break;
     }

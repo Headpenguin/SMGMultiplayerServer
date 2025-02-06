@@ -225,6 +225,12 @@ int main() {
 
                     break;
                 }
+                case Packets::Tag::STAR_PIECE:
+                {
+                    // TODO: Maybe do some more validity checking and store the packet?
+                    pp.finishProcessing();
+                    break;
+                }
                 case Packets::Tag::TIME_QUERY:
                 {
                     NetReturn id = pp.getSenderId();

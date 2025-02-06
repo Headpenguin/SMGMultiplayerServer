@@ -18,6 +18,7 @@ enum class Tag : uint32_t {
     PLAYER_POSITION,
     TIME_QUERY,
     TIME_RESPONSE,
+    STAR_PIECE,
     MAX_TAG
 };
 
