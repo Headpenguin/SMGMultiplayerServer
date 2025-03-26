@@ -58,7 +58,7 @@ int main() {
     pos.currentAnimation = -1;
     pos.defaultAnimation = -1;
     pos.timestamp = {0};
-    //pos.stateFlags |= pos.O_STATE_HIPDROP;
+    pos.stateFlags |= pos.O_STATE_HIPDROP;
     int highest = -0x80000000;
     bool pposo = false;
     while(!quit) {
@@ -187,7 +187,7 @@ int main() {
                 printf("%d %d\n", pos.currentAnimation, pos.defaultAnimation);
                 printf("%f\n", pos.animationSpeed);
             }
-            if(timer % 600 == 0 && connected) {
+            if(timer % 60 == 0 && connected) {
                 piece.timestamp = {highest};
                 piece.initLineEnd.x = position.x;
                 piece.initLineEnd.y = position.y;
@@ -196,7 +196,7 @@ int main() {
                 piece.playerId = id;
                 *(uint32_t*)buffer = ntohl((uint32_t)Packets::Tag::STAR_PIECE);
                 NetReturn res;
-                res = piece.netWriteToBuffer(buffer + 4, 60);
+//                res = piece.netWriteToBuffer(buffer + 4, 60);
                 if(res.errorCode != NetReturn::OK) {
                     fprintf(stderr, "(main) Really bad... %d\n", res.errorCode);
                     continue;
