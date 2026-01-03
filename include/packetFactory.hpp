@@ -7,6 +7,7 @@
 #include "packets/serverInitialResponse.hpp"
 #include "packets/playerPosition.hpp"
 #include "packets/timeSync.hpp"
+#include "packets/starPiece.hpp"
 
 namespace Packets {
 
@@ -23,6 +24,7 @@ public:
             PlayerPosition playerPos;
             TimeQuery timeQuery;
             TimeResponse timeResponse;
+            StarPiece starPiece;
         };
         PacketUnion() {}
     };

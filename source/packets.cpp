@@ -4,6 +4,7 @@
 #include "packets/playerPosition.hpp"
 #include "timestamps.hpp"
 #include "packets/timeSync.hpp"
+#include "packets/starPiece.hpp"
 
 #include <cstring>
 
@@ -55,7 +56,10 @@ namespace implementation {
 
     struct PlayerPosition {
         uint8_t playerId;
-        uint8_t padding[3];
+        uint8_t stateFlags;
+        uint8_t padding[2];
+
+        ServerPacketTimestamp timestamp;
 
         ServerPacketTimestamp timestamp;
 
@@ -75,6 +79,21 @@ namespace implementation {
         uint32_t defaultAnimation;
         uint32_t animationSpeed;
         
+    };
+
+    struct StarPiece {
+        uint8_t playerId;
+        uint8_t padding[3];
+
+        ServerPacketTimestamp timestamp;
+
+        uint32_t initLineStartX;
+        uint32_t initLineStartY;
+        uint32_t initLineStartZ;
+        
+        uint32_t initLineEndX;
+        uint32_t initLineEndY;
+        uint32_t initLineEndZ;
     };
 
     struct ServerInitialResponse {
@@ -225,9 +244,11 @@ NetReturn _PlayerPosition::netWriteToBuffer(void *buffer, uint32_t len) const {
     if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
 
     packet->playerId = playerId;
+    packet->stateFlags = stateFlags;
     packet->padding[0] = 0;
     packet->padding[1] = 0;
-    packet->padding[2] = 0;
+
+    packet->timestamp = implementation::ServerPacketTimestamp(timestamp);
 
     packet->timestamp = implementation::ServerPacketTimestamp(timestamp);
 
@@ -263,6 +284,8 @@ NetReturn _PlayerPosition::netReadFromBuffer(Packet<_PlayerPosition> *out, const
 
     out->playerId = packet->playerId;
 
+    out->stateFlags = packet->stateFlags;
+    
     out->timestamp = packet->timestamp.toHL();
     
     out->position = {
@@ -294,7 +317,6 @@ NetReturn _PlayerPosition::netReadFromBuffer(Packet<_PlayerPosition> *out, const
 uint32_t _PlayerPosition::getSize() const {
     return sizeof(implementation::PlayerPosition);
 }
-
 NetReturn _TimeQuery::netWriteToBuffer(void *buffer, uint32_t len) const {
     return {0xDEAD, NetReturn::SYSTEM_ERROR};
 }
@@ -342,6 +364,69 @@ NetReturn _TimeResponse::netReadFromBuffer(TimeResponse *, const void *, uint32_
 uint32_t _TimeResponse::getSize() const {
     return sizeof(implementation::TimeResponse);
 }
+
+NetReturn _StarPiece::netWriteToBuffer(void *buffer, uint32_t len) const {
+    auto *packet = reinterpret_cast<implementation::StarPiece *>(buffer);
+    
+    static_assert(std::is_layout_compatible<
+        std::remove_reference<decltype(*packet)>::type,
+        implementation::StarPiece
+    >());
+    
+    if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
+
+    packet->playerId = playerId;
+    packet->padding[0] = 0;
+    packet->padding[1] = 0;
+    packet->padding[2] = 0;
+
+    packet->timestamp = implementation::ServerPacketTimestamp(timestamp);
+
+    packet->initLineStartX = htonl(std::bit_cast<uint32_t>(initLineStart.x));
+    packet->initLineStartY = htonl(std::bit_cast<uint32_t>(initLineStart.y));
+    packet->initLineStartZ = htonl(std::bit_cast<uint32_t>(initLineStart.z));
+    
+    packet->initLineEndX = htonl(std::bit_cast<uint32_t>(initLineEnd.x));
+    packet->initLineEndY = htonl(std::bit_cast<uint32_t>(initLineEnd.y));
+    packet->initLineEndZ = htonl(std::bit_cast<uint32_t>(initLineEnd.z));
+    
+    // Remember to update getSize if the size changes
+    return {sizeof *packet, NetReturn::OK};
+}
+
+NetReturn _StarPiece::netReadFromBuffer(Packet<_StarPiece> *out, const void *buffer, uint32_t len) {
+    const auto *packet = reinterpret_cast<const implementation::StarPiece*>(buffer);
+    
+    static_assert(std::is_layout_compatible<
+        std::remove_reference<decltype(*packet)>::type,
+        implementation::StarPiece
+    >());
+
+    if(len < sizeof *packet) return {sizeof *packet, NetReturn::NOT_ENOUGH_SPACE};
+
+    out->playerId = packet->playerId;
+
+    out->timestamp = packet->timestamp.toHL();
+    
+    out->initLineStart = {
+        std::bit_cast<float>(ntohl(packet->initLineStartX)),
+        std::bit_cast<float>(ntohl(packet->initLineStartY)),
+        std::bit_cast<float>(ntohl(packet->initLineStartZ))
+    };
+    
+    out->initLineEnd = {
+        std::bit_cast<float>(ntohl(packet->initLineEndX)),
+        std::bit_cast<float>(ntohl(packet->initLineEndY)),
+        std::bit_cast<float>(ntohl(packet->initLineEndZ))
+    };
+
+    return {sizeof *packet, NetReturn::OK};
+}
+
+uint32_t _StarPiece::getSize() const {
+    return sizeof(implementation::StarPiece);
+}
+
 
 }
 
