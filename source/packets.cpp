@@ -61,8 +61,6 @@ namespace implementation {
 
         ServerPacketTimestamp timestamp;
 
-        ServerPacketTimestamp timestamp;
-
         uint32_t positionX;
         uint32_t positionY;
         uint32_t positionZ;
